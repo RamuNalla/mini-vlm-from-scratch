@@ -1,0 +1,12 @@
+torch>=2.5
+torchvision>=0.20
+transformers>=4.50
+peft>=0.14
+datasets>=3.0
+pillow
+pyyaml
+tqdm
+matplotlib
+numpy
+pytest
+jupyter
