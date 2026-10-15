@@ -77,7 +77,7 @@ def load_clip_vit(model_name: str = "openai/clip-vit-base-patch16") -> VisionTra
         layer_norm_eps=cfg.layer_norm_eps,
     )
 
-    hf_sd = CLIPVisionModel.from_pretrained(model_name).state_dict()
+    hf_sd = CLIPVisionModel.from_pretrained(model_name, config=cfg).state_dict()
     # strict=True: every key of our model must be filled, and nothing extra may be provided
     model.load_state_dict(convert_clip_state_dict(hf_sd, cfg.num_hidden_layers), strict=True)
     return model.eval()
