@@ -13,6 +13,20 @@ from src.models.vit.vit import VisionTransformer
 STAGES = ("align", "instruct")
 
 
+def adaptive_avg_pool_matrix(in_size: int, out_size: int, device=None, dtype=None) -> torch.Tensor:
+    """
+    (out_size, in_size) matrix whose rows average the same input bins as
+    F.adaptive_avg_pool{1,2}d. A matmul version works on any device, whereas MPS cannot
+    run adaptive pooling when in_size is not divisible by out_size (e.g. 14 -> 8).
+    """
+    m = torch.zeros(out_size, in_size, device=device, dtype=dtype)
+    for i in range(out_size):
+        start = (i * in_size) // out_size
+        end = -((-(i + 1) * in_size) // out_size)      # ceil((i + 1) * in_size / out_size)
+        m[i, start:end] = 1.0 / (end - start)
+    return m
+
+
 class MiniVLM(nn.Module):
     """
     LLaVA-style VLM:  image -> ViT patch tokens -> (pool) -> projector -> LM input embeddings.
@@ -77,9 +91,10 @@ class MiniVLM(nn.Module):
             return features
         assert self.grid_side < side, \
             f"Cannot produce {self.num_visual_tokens} tokens from a {side}x{side} grid; use a higher image resolution"
-        grid = features.transpose(1, 2).reshape(B, D, side, side)
-        grid = F.adaptive_avg_pool2d(grid, self.grid_side)
-        return grid.flatten(2).transpose(1, 2)
+        pool = adaptive_avg_pool_matrix(side, self.grid_side, features.device, features.dtype)
+        grid = features.reshape(B, side, side, D)
+        grid = torch.einsum("ia,jb,babd->bijd", pool, pool, grid.reshape(B, side, side, D).transpose(0, 0))
+        return grid.reshape(B, self.grid_side * self.grid_side, D)
 
     def encode_images(
         self,
