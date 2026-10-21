@@ -3,7 +3,6 @@ from typing import List, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from src.data.templates import IM_END, get_image_token_id
 from src.models.language_model import LanguageModel
