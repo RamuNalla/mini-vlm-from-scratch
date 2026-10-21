@@ -250,9 +250,9 @@ def test_frozen_vit_features_carry_no_graph(tok, lm):
 
 
 def test_unfrozen_vit_receives_gradients(tok, lm):
-    vlm = make_vlm(lm, 16).unfreeze_vit(last_n_blocks=1)
+    vlm = make_vlm(lm, 16).unfreeze_vit(last_n_blocks=1)     # block 1 = last block used at layer -2
     vlm(pixel_values=images(), **make_batch(tok, 16)).loss.backward()
-    assert all(p.grad is not None for p in vlm.vit.encoder_blocks[-1].parameters())
+    assert all(p.grad is not None for p in vlm.vit.encoder_blocks[1].parameters())
     assert all(p.grad is None for p in vlm.vit.encoder_blocks[0].parameters())
 
 
@@ -299,12 +299,25 @@ def test_switching_back_to_align_freezes_lora(tok, lm):
     assert all(n.startswith("projector.") for n in trainable_names(vlm))
 
 
-def test_unfreeze_vit_options(tok, lm):
+def test_unfreeze_vit_counts_only_blocks_that_feed_the_vlm(tok, lm):
+    # tiny ViT has 3 blocks; with vit_layer=-2 only blocks 0 and 1 are run
+    vlm = make_vlm(lm, 16).unfreeze_vit(last_n_blocks=1)
+    vit_trainable = {n for n in trainable_names(vlm) if n.startswith("vit.")}
+    assert vit_trainable and all(n.startswith("vit.encoder_blocks.1.") for n in vit_trainable)
+
     vlm = make_vlm(lm, 16).unfreeze_vit(last_n_blocks=2)
     vit_trainable = {n for n in trainable_names(vlm) if n.startswith("vit.")}
-    assert vit_trainable and all(n.startswith(("vit.encoder_blocks.1.", "vit.encoder_blocks.2.")) for n in vit_trainable)
-    vlm.unfreeze_vit()
-    assert any(n.startswith("vit.embeddings.") for n in trainable_names(vlm))
+    assert all(n.startswith(("vit.encoder_blocks.0.", "vit.encoder_blocks.1.")) for n in vit_trainable)
+
+
+def test_full_unfreeze_skips_unused_final_block_and_head(tok, lm):
+    vlm = make_vlm(lm, 16).unfreeze_vit()
+    names = trainable_names(vlm)
+    assert any(n.startswith("vit.embeddings.") for n in names)
+    assert not any(n.startswith(("vit.encoder_blocks.2.", "vit.norm.")) for n in names)
+    # and every unfrozen ViT parameter really receives a gradient
+    vlm(pixel_values=images(), **make_batch(tok, 16)).loss.backward()
+    assert all(p.grad is not None for n, p in vlm.named_parameters() if n.startswith("vit.") and p.requires_grad)
 
 
 def test_unknown_stage_rejected(tok, lm):
