@@ -208,7 +208,7 @@ def test_visual_tokens_act_exactly_like_word_embeddings(tok, e2e_lm):
     batch = make_batch(tok, n, batch=1)
     cat_id = tok(" cat", add_special_tokens=False)["input_ids"][0]
     cat_vec = e2e_lm.get_input_embeddings().weight[cat_id].detach()
-    vlm.encode_images = lambda **kw: cat_vec.expand(1, n, -1).clone()
+    vlm.encode_images = lambda *args, **kw: cat_vec.expand(1, n, -1).clone()
 
     with torch.no_grad():
         via_vlm = vlm(pixel_values=images(1), **batch).logits
