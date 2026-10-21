@@ -194,8 +194,12 @@ class MiniVLM(nn.Module):
         return self
 
     def unfreeze_vit(self, last_n_blocks: Optional[int] = None) -> "MiniVLM":
-        """Train the whole encoder, or only its last `last_n_blocks` transformer blocks."""
-        blocks = self.vit.encoder_blocks
+        """
+        Train the encoder, or only its last `last_n_blocks` blocks. Only blocks that feed
+        the VLM count: with vit_layer=-2 the final block is never run, so it stays frozen.
+        """
+        used = len(self.vit.encoder_blocks) + 1 + self.vit_layer if self.vit_layer < 0 else self.vit_layer
+        blocks = self.vit.encoder_blocks[:used]
         selected = blocks if last_n_blocks is None else blocks[len(blocks) - last_n_blocks:]
         for block in selected:
             for p in block.parameters():
