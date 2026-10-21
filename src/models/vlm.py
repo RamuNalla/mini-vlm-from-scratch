@@ -91,9 +91,10 @@ class MiniVLM(nn.Module):
             return features
         assert self.grid_side < side, \
             f"Cannot produce {self.num_visual_tokens} tokens from a {side}x{side} grid; use a higher image resolution"
-        grid = features.transpose(1, 2).reshape(B, D, side, side)
-        grid = F.adaptive_avg_pool2d(grid, self.grid_side)
-        return grid.flatten(2).transpose(1, 2)
+        pool = adaptive_avg_pool_matrix(side, self.grid_side, features.device, features.dtype)
+        grid = features.reshape(B, side, side, D)                       # (batch, row, col, dim)
+        grid = torch.einsum("ir,jc,brcd->bijd", pool, pool, grid)       # average rows, then cols
+        return grid.reshape(B, self.grid_side * self.grid_side, D)
 
     def encode_images(
         self,
