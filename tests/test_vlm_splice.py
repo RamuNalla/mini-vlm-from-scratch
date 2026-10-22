@@ -346,6 +346,38 @@ def test_generate_is_deterministic(tok, lm):
     assert torch.equal(a, b)
 
 
+def reference_greedy(vlm, ids, visual, steps):
+    """Cache-free greedy decoding straight from the LM forward pass (ground truth)."""
+    embeds = vlm.build_inputs_embeds(ids, visual)
+    out = []
+    for _ in range(steps):
+        nxt = vlm.lm(inputs_embeds=embeds).logits[:, -1].argmax(-1)
+        out.append(nxt)
+        embeds = torch.cat([embeds, vlm.lm.get_input_embeddings()(nxt[:, None])], dim=1)
+    return torch.stack(out, dim=1)
+
+
+def test_generate_matches_plain_greedy_despite_hostile_generation_config(tok, lm):
+    """
+    Qwen's generation_config ships repetition_penalty=1.1 (plus sampling defaults), which
+    corrupted decoding from inputs_embeds (garbage first token). generate() must neutralise it.
+    """
+    n = 16
+    vlm = make_vlm(lm, n)
+    cfg = lm.model.generation_config
+    cfg.repetition_penalty, cfg.do_sample, cfg.temperature, cfg.top_p, cfg.top_k = 2.0, True, 0.7, 0.8, 20
+    p = build_conversation_inputs(tok, MSGS[:1], n, add_generation_prompt=True)
+    ids, am = torch.tensor([p["input_ids"]]), torch.tensor([p["attention_mask"]])
+    pix = images(1)
+
+    steps = 6
+    # eos can't be hit early with a random LM, but guard the comparison anyway
+    got = vlm.generate(ids, am, pixel_values=pix, max_new_tokens=steps, eos_token_id=None)
+    with torch.no_grad():
+        expected = reference_greedy(vlm, ids, vlm.encode_images(pixel_values=pix), steps)
+    assert torch.equal(got, expected)
+
+
 def test_generate_rejects_right_padded_batches(tok, lm):
     n = 16
     vlm = make_vlm(lm, n)
