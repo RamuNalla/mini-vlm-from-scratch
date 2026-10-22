@@ -256,17 +256,17 @@ def test_unfrozen_vit_receives_gradients(tok, lm):
     assert all(p.grad is None for p in vlm.vit.encoder_blocks[0].parameters())
 
 
-def test_loss_ignores_masked_prompt_tokens(tok, lm):
-    """Only assistant tokens contribute: changing a masked label changes nothing."""
+def test_loss_is_cross_entropy_over_assistant_tokens_only(tok, lm):
+    """Recompute the loss by hand: next-token CE averaged over the unmasked label positions."""
     vlm = make_vlm(lm, 16)
     batch = make_batch(tok, 16)
     with torch.no_grad():
-        base = vlm(pixel_values=images(), **batch).loss
-        altered = dict(batch)
-        labels = batch["labels"].clone()
-        labels[labels == -100] = -100              # no-op: masked stay masked
-        altered["labels"] = labels
-        assert torch.equal(base, vlm(pixel_values=images(), **altered).loss)
+        out = vlm(pixel_values=images(), **batch)
+        logits, labels = out.logits[:, :-1], batch["labels"][:, 1:]
+        keep = labels != -100
+        assert 0 < keep.sum() < labels.numel()                  # some tokens masked, some trained on
+        manual = F.cross_entropy(logits[keep], labels[keep])
+    assert torch.allclose(out.loss, manual, atol=1e-5)
 
 
 # ----------------------------------------------------------------- stages
@@ -336,7 +336,7 @@ def test_generate_returns_new_tokens_only(tok, lm):
     assert out.shape[0] == 1 and 1 <= out.shape[1] <= 5
 
 
-def test_generate_is_deterministic_and_depends_on_the_image(tok, lm):
+def test_generate_is_deterministic(tok, lm):
     n = 16
     vlm = make_vlm(lm, n)
     p = build_conversation_inputs(tok, MSGS[:1], n, add_generation_prompt=True)
