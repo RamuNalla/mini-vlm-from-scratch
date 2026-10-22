@@ -6,7 +6,7 @@ pooling, splicing, label masking, loss) is correct, the loss goes to ~0 and gree
 reproduces the training captions. Before training the output is generic.
 
     python scripts/fetch_toy_coco.py --n 8
-    python scripts/overfit_toy.py --projector linear --tokens 64 --steps 300
+    python -m scripts.overfit_toy --projector linear --tokens 64 --steps 300
 """
 import argparse
 import json
