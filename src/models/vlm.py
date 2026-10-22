@@ -14,7 +14,7 @@ STAGES = ("align", "instruct")
 
 def adaptive_avg_pool_matrix(in_size: int, out_size: int, device=None, dtype=None) -> torch.Tensor:
     """
-    (out_size, in_size) matrix whose rows average the same input bins as
+    (out_size, in_size) matrix whosae rows average the same input bins as
     F.adaptive_avg_pool{1,2}d. A matmul version works on any device, whereas MPS cannot
     run adaptive pooling when in_size is not divisible by out_size (e.g. 14 -> 8).
     """
@@ -167,6 +167,12 @@ class MiniVLM(nn.Module):
         tok = self.lm.tokenizer
         gen_kwargs.setdefault("max_new_tokens", 64)
         gen_kwargs.setdefault("do_sample", False)
+        # Qwen's generation_config ships repetition_penalty=1.1 and sampling params. Decoding from
+        # inputs_embeds with that penalty gives garbage tokens (e.g. a wrong first token), so
+        # override the checkpoint defaults unless the caller asks for something else.
+        gen_kwargs.setdefault("repetition_penalty", 1.0)
+        for key in ("temperature", "top_p", "top_k"):
+            gen_kwargs.setdefault(key, None)
         gen_kwargs.setdefault("eos_token_id", tok.convert_tokens_to_ids(IM_END))
         gen_kwargs.setdefault("pad_token_id", tok.pad_token_id)
         return self.lm.generate(inputs_embeds=embeds, attention_mask=attention_mask, **gen_kwargs)
