@@ -21,11 +21,14 @@ import argparse
 import json
 import os
 import random
+import shutil
+import ssl
 import urllib.request
 import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
+import certifi
 from datasets import load_dataset
 from PIL import Image
 from tqdm import tqdm
@@ -39,13 +42,21 @@ VQA_FILES = {
 }
 IMAGE_URL = "http://images.cocodataset.org/{folder}/COCO_{folder}_{id:012d}.jpg"
 
+# python.org builds of Python often lack system CA certs; use certifi's bundle (verification stays on)
+SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+
+
+def download(url: str, dest: str):
+    with urllib.request.urlopen(url, context=SSL_CONTEXT, timeout=60) as r, open(dest, "wb") as f:
+        shutil.copyfileobj(r, f)
+
 
 def fetch(url: str, path: str):
     if os.path.exists(path):
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".part"
-    urllib.request.urlretrieve(url, tmp)
+    download(url, tmp)
     os.replace(tmp, path)
 
 
@@ -94,7 +105,7 @@ def download_resize(job):
     for _ in range(3):
         try:
             tmp = path + ".part"
-            urllib.request.urlretrieve(url, tmp)
+            download(url, tmp)
             img = Image.open(tmp).convert("RGB")
             w, h = img.size
             scale = size / min(w, h)
