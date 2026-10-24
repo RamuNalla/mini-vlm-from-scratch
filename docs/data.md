@@ -57,3 +57,27 @@ Images: 11,000 JPEGs in `data/images/<cocoid>.jpg`, 384 MB. They are resized so 
 python scripts/download_data.py                       # defaults above
 python scripts/download_data.py --train-images 20 --eval-images 10 --out /tmp/data_smoke   # quick smoke test
 ```
+
+## Feature cache
+
+With a frozen encoder the ViT output for an image never changes, so `scripts/extract_features.py` encodes every image once and stores the result in `data/features/clip_b16_l-2_224/` (`src/data/feature_cache.py`).
+
+| | |
+|---|---|
+| Features | CLIP ViT-B/16, layer -2, CLS dropped: 196 tokens (14x14 grid) x 768 per image |
+| Storage | `features.npy` memmap, float16, 11,000 images, 3.31 GB (`--dtype float32` gives the exact fp32 features at twice the size) |
+| Extraction | 197 s on the M4 Pro (56 img/s); resumable, and refuses to resume with different settings |
+| Token counts | 196, 64 and 16 are all served from this cache through pooling in the VLM. 256 tokens needs a 21x21 grid from 336px images and is not covered |
+
+Usage: `FeatureStore(dir)` behaves like a mapping `image_id -> tensor (196, 768)` and plugs into the datasets via `feature_store=`.
+
+Checked against freshly computed fp32 features on 64 random images:
+
+| | |
+|---|---|
+| Max abs difference | 0.031 (features reach 95; this is the fp16 rounding step at that magnitude) |
+| Mean abs difference | 5.4e-5 (relative 1.8e-4) |
+| Min per-token cosine similarity | 0.999999 |
+| Time for a batch of 64 | on-the-fly (decode + transform + ViT) 999 ms, cached 7 ms: **142x faster** (15.6 vs 0.11 ms per image) |
+
+Training on cached features therefore removes the image pipeline and the ViT forward from every step. The features are not bit-identical to fp32 (fp16 storage); the error is far below what matters for a projector's input.
