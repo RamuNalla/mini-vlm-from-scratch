@@ -54,12 +54,14 @@ def data_dir(tmp_path_factory):
     captions = [{"image_id": i, "image": f"images/{i}.jpg", "captions": [f"caption {i} number {k}." for k in range(5)]}
                 for i in image_ids]
     vqa = []
-    for i in image_ids:
+    for n, i in enumerate(image_ids):
         for q in range(2):
+            k = 2 * n + q                                  # vary question/answer length so padding is exercised
+            answer = "a very small cat" * (k % 3) if k % 3 else "yes"
             vqa.append({
                 "question_id": i * 10 + q, "image_id": i, "image": f"images/{i}.jpg",
-                "question": f"What is in picture {i}, question {q}?", "answer": "cat" if q else "yes",
-                "answers": ["cat" if q else "yes"] * 9 + ["dog"],
+                "question": "What is " + "really " * (k % 4) + f"in picture {i}?", "answer": answer,
+                "answers": [answer] * 9 + ["dog"],
                 "question_type": "what is", "answer_type": "other" if q else "yes/no",
             })
     (root / "manifests").mkdir()
@@ -160,8 +162,11 @@ def test_invalid_mode_rejected(data_dir, tok):
 
 
 def test_max_length_cutting_the_image_raises(data_dir, tok):
+    full = caption_ds(data_dir, tok)[0]["input_ids"]
+    first_pad = full.index(get_image_token_id(tok))
     with pytest.raises(ValueError, match="cut"):
-        caption_ds(data_dir, tok, max_length=20)[0]
+        caption_ds(data_dir, tok, max_length=first_pad + 2)[0]          # ends inside the image block
+    assert len(caption_ds(data_dir, tok, max_length=first_pad + N + 5)[0]["input_ids"]) == first_pad + N + 5
 
 
 def test_feature_store_items_have_features_not_pixels(data_dir, tok):
