@@ -1,0 +1,30 @@
+run_name: stage1_align
+seed: 0
+device: auto
+dtype: float32            # LM dtype (float32 | bfloat16)
+stage: align              # align: projector only | instruct: projector + LoRA
+
+model:
+  vit: openai/clip-vit-base-patch16
+  lm: Qwen/Qwen2.5-0.5B-Instruct
+  projector: linear       # linear | mlp
+  num_visual_tokens: 64   # 16 | 64 | 196 (pooled from the cached 14x14 grid)
+
+data:
+  task: caption           # caption | vqa
+  root: data
+  features: data/features/clip_b16_l-2_224
+  train_manifest: data/manifests/caption_train.jsonl
+  val_images: 200         # whole images held out of training for the validation loss
+
+training:
+  epochs: 3
+  batch_size: 16
+  grad_accum: 1
+  lr_projector: 1.0e-3
+  weight_decay: 0.0
+  warmup_ratio: 0.05
+  min_lr_ratio: 0.1
+  grad_clip: 1.0
+  log_every: 10
+  eval_every: 100
