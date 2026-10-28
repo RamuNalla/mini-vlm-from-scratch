@@ -16,10 +16,8 @@ from src.data.caption_dataset import CaptionDataset
 from src.data.collator import make_collator
 from src.data.feature_cache import FeatureStore
 from src.data.vqa_dataset import VQADataset
-from src.engine.trainer import Trainer, load_trainable_weights, split_by_image
-from src.models.language_model import LanguageModel
-from src.models.vit.load_pretrained import load_clip_vit
-from src.models.vlm import MiniVLM
+from src.engine.loading import build_vlm, move_vlm
+from src.engine.trainer import Trainer, split_by_image
 from src.utils.config import get_device, load_config
 
 TASKS = {"caption": CaptionDataset, "vqa": VQADataset}
@@ -29,25 +27,9 @@ def build_trainer(cfg: dict, out_dir: str) -> Trainer:
     torch.manual_seed(cfg.get("seed", 0))
     device = get_device(cfg.get("device", "auto"))
     m, d = cfg["model"], cfg["data"]
-
-    lm = LanguageModel.from_pretrained(m["lm"], dtype=cfg.get("dtype", "float32"))
-    vit = load_clip_vit(m["vit"])
     n_tokens = m["num_visual_tokens"]
-    vlm = MiniVLM.build(vit, lm, m.get("projector", "linear"), n_tokens)
 
-    if cfg["stage"] == "instruct":
-        lora = m.get("lora", {})
-        lm.apply_lora(r=lora.get("r", 16), alpha=lora.get("alpha", 32), dropout=lora.get("dropout", 0.05))
-    vlm.set_stage(cfg["stage"])
-    if m.get("unfreeze_vit_blocks") is not None:
-        vlm.unfreeze_vit(last_n_blocks=m["unfreeze_vit_blocks"])
-    if m.get("init_from"):
-        loaded = load_trainable_weights(vlm, m["init_from"], prefixes=("projector.",))
-        print(f"initialised {len(loaded)} projector tensors from {m['init_from']}")
-
-    # features come from the cache, so the ViT is never run: keep it off the accelerator
-    vlm.projector.to(device)
-    vlm.lm.to(device)
+    vlm = move_vlm(build_vlm(cfg), device)       # features come from the cache, so the ViT stays on the CPU
 
     tok = AutoTokenizer.from_pretrained(m["lm"])
     store = FeatureStore(d["features"])
