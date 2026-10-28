@@ -71,8 +71,6 @@ def main():
     if args.constant is not None:
         metas = read_jsonl(os.path.join(manifests, "vqa_eval.jsonl"))
         metas = metas[: args.limit] if args.limit else metas
-        for m in metas:
-            m["answers"] = m["answers"]
         result = {"metrics": constant_vqa_baseline(metas, args.constant)}
         save(out_dir, "vqa", result, {**info, "constant": args.constant})
         print_vqa(result["metrics"])

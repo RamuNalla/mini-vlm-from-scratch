@@ -248,6 +248,39 @@ def test_dataloader_integration(data_dir, tok):
     assert [b["input_ids"].shape[0] for b in batches] == [4, 4, 2]
 
 
+# ------------------------------------------------------------------ text-only mode
+
+def test_text_only_dataset_has_no_image_block_or_visual_input(data_dir, tok):
+    ds = vqa_ds(data_dir, tok, transform=None, use_image=False, mode="train")
+    item = ds[1]
+    text = tok.decode(item["input_ids"])
+    assert "<image>" not in text and get_image_token_id(tok) not in item["input_ids"]
+    assert ds.records[1]["question"] in text and VQA_SUFFIX in text
+    assert "image" not in item and "vision_features" not in item
+    assert trained_on(tok, item) == ds.records[1]["answer"] + "<|im_end|>"
+
+
+def test_text_only_caption_eval_item(data_dir, tok):
+    item = caption_ds(data_dir, tok, transform=None, use_image=False, mode="eval")[0]
+    assert tok.decode(item["input_ids"]).endswith("<|im_start|>assistant\n")
+    assert get_image_token_id(tok) not in item["input_ids"] and "image" not in item
+
+
+def test_text_only_dataset_rejects_a_visual_source(data_dir, tok):
+    with pytest.raises(ValueError, match="text-only"):
+        vqa_ds(data_dir, tok, use_image=False)                       # transform given by default
+    with pytest.raises(ValueError, match="text-only"):
+        vqa_ds(data_dir, tok, transform=None, use_image=False, feature_store={})
+
+
+def test_collator_handles_text_only_batches_and_rejects_mixing(data_dir, tok):
+    text_ds = vqa_ds(data_dir, tok, transform=None, use_image=False, mode="eval")
+    b = make_collator(tok, "eval")([text_ds[i] for i in range(3)])
+    assert not {"pixel_values", "vision_features"} & set(b) and b["input_ids"].shape[0] == 3
+    with pytest.raises(AssertionError):
+        make_collator(tok, "eval")([text_ds[0], vqa_ds(data_dir, tok, mode="eval")[0]])
+
+
 # ------------------------------------------------------------------ feature cache
 
 @pytest.fixture(scope="module")
