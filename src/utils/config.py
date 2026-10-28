@@ -8,12 +8,14 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
-def get_device(preference: str = "auto") -> torch.device:
+def get_device(preference="auto") -> torch.device:
     """
     Resolve a device from a config string.
     "auto" picks MPS, then CUDA, then CPU. An explicit "mps"/"cuda"/"cpu"
     is honoured only if available, otherwise falls back to CPU with a warning.
     """
+    if isinstance(preference, torch.device):
+        return preference
     available = {
         "mps": torch.backends.mps.is_available(),
         "cuda": torch.cuda.is_available(),
