@@ -10,3 +10,6 @@ matplotlib
 numpy
 pytest
 jupyter
+
+# optional, dev only: reference scorers used to check src/eval/caption_metrics.py (tests skip without it)
+# pycocoevalcap
