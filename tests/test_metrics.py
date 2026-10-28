@@ -73,6 +73,31 @@ def test_unanimous_answers_are_compared_literally_like_the_official_script():
     assert vqa_soft_accuracy(clean_vqa_prediction("Yes."), ["yes"] * 10) == 1.0
 
 
+def test_always_mode_normalises_predictions_against_unanimous_answers():
+    assert vqa_soft_accuracy("Four", ["4"] * 10) == 0.0                              # official: literal comparison
+    assert vqa_soft_accuracy("Four", ["4"] * 10, normalize="always") == 1.0
+    assert vqa_soft_accuracy("Yes", ["yes"] * 10, normalize="always") == 1.0
+    assert vqa_soft_accuracy("the dog.", ["dog"] * 10, normalize="always") == 1.0
+    assert vqa_soft_accuracy("five", ["4"] * 10, normalize="always") == 0.0          # still wrong is still wrong
+
+
+def test_modes_agree_when_the_human_answers_disagree():
+    gold = ["2"] * 6 + ["3"] * 4
+    for pred in ("Two", "3", "blue"):
+        assert vqa_soft_accuracy(pred, gold) == vqa_soft_accuracy(pred, gold, normalize="always")
+
+
+def test_unknown_normalize_mode_rejected():
+    with pytest.raises(AssertionError):
+        vqa_soft_accuracy("yes", ["yes"] * 10, normalize="sometimes")
+
+
+def test_evaluate_vqa_defaults_to_always_mode():
+    meta = [{"answers": ["4"] * 10, "answer_type": "number", "question_type": "how many"}]
+    assert evaluate_vqa(["Four."], meta)["accuracy"] == 100.0
+    assert evaluate_vqa(["Four."], meta, normalize="official")["accuracy"] == 0.0
+
+
 def test_wrong_answer_scores_zero():
     assert vqa_soft_accuracy("blue", ["red"] * 7 + ["orange"] * 3) == 0.0
 

@@ -23,6 +23,7 @@ from src.data.feature_cache import FeatureStore
 from src.data.manifest_dataset import read_jsonl
 from src.data.vqa_dataset import VQADataset
 from src.engine.evaluator import Evaluator, constant_vqa_baseline
+from src.eval.vqa_accuracy import evaluate_vqa
 from src.engine.loading import build_vlm, load_vlm_from_checkpoint, move_vlm
 from src.utils.config import get_device, load_config
 
@@ -53,6 +54,7 @@ def main():
     p.add_argument("--config", default="configs/stage1_align.yaml", help="architecture for baselines without a checkpoint")
     p.add_argument("--text-only", action="store_true", help="no image: the LM answers from the question alone")
     p.add_argument("--constant", default=None, help="answer every VQA question with this string (no model)")
+    p.add_argument("--rescore", action="store_true", help="recompute VQA metrics from saved predictions (no model, no generation)")
     p.add_argument("--tasks", nargs="+", default=["vqa", "caption"], choices=["vqa", "caption"])
     p.add_argument("--data", default="data")
     p.add_argument("--features", default=None, help="default: <data>/features/clip_b16_l-2_224")
@@ -67,6 +69,23 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     manifests = os.path.join(args.data, "manifests")
     info = {"name": args.name, "checkpoint": args.checkpoint, "text_only": args.text_only}
+
+    if args.rescore:
+        rows = read_jsonl(os.path.join(out_dir, "vqa_predictions.jsonl"))
+        by_id = {r["question_id"]: r for r in read_jsonl(os.path.join(manifests, "vqa_eval.jsonl"))}
+        metas = [by_id[r["question_id"]] for r in rows]
+        result = evaluate_vqa([r["prediction"] for r in rows], metas)
+        scores = result.pop("scores")
+        for r, sc in zip(rows, scores):
+            r["score"] = sc
+        with open(os.path.join(out_dir, "vqa_metrics.json")) as f:
+            old = json.load(f)
+        old["metrics"] = result
+        with open(os.path.join(out_dir, "vqa_metrics.json"), "w") as f:
+            json.dump(old, f, indent=2)
+        write_jsonl(os.path.join(out_dir, "vqa_predictions.jsonl"), rows)
+        print_vqa(result)
+        return
 
     if args.constant is not None:
         metas = read_jsonl(os.path.join(manifests, "vqa_eval.jsonl"))

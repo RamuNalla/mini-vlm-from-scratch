@@ -10,6 +10,10 @@ articles, contractions) and compares unanimous answers literally. `vqa_soft_accu
 including the oddities (e.g. capitalised contraction keys never match because words are lowercased
 first). Model outputs are therefore cleaned first with `clean_vqa_prediction`, as evaluation harnesses
 for generative models do.
+
+`normalize="always"` (the default of `evaluate_vqa`) also normalises the prediction when the 10 answers are
+unanimous, as the VQA challenge server does. Otherwise "four" would score 0 against ten "4" annotators, which
+penalises answer formatting rather than answers.
 """
 import re
 from collections import defaultdict
@@ -86,11 +90,16 @@ def clean_vqa_prediction(text: str) -> str:
     return text[:-1].strip() if text.endswith(".") else text
 
 
-def vqa_soft_accuracy(prediction: str, answers: Sequence[str]) -> float:
-    """Official VQA accuracy of one prediction against the 10 human answers."""
+def vqa_soft_accuracy(prediction: str, answers: Sequence[str], normalize: str = "official") -> float:
+    """
+    VQA accuracy of one prediction against the 10 human answers.
+    normalize="official": normalise only when the human answers disagree (the official script).
+    normalize="always": also normalise a prediction against unanimous answers (challenge-server behaviour).
+    """
+    assert normalize in ("official", "always"), f"normalize must be 'official' or 'always', got '{normalize}'"
     prediction = prediction.replace("\n", " ").replace("\t", " ").strip()
     answers = list(answers)
-    if len(set(answers)) > 1:                       # the official script only normalises on disagreement
+    if normalize == "always" or len(set(answers)) > 1:
         answers = [process_punctuation(a) for a in answers]
         prediction = process_digit_article(process_punctuation(prediction))
 
@@ -101,7 +110,9 @@ def vqa_soft_accuracy(prediction: str, answers: Sequence[str]) -> float:
     return sum(scores) / len(scores)
 
 
-def evaluate_vqa(predictions: Sequence[str], meta: Sequence[dict], clean: bool = True) -> Dict[str, object]:
+def evaluate_vqa(
+    predictions: Sequence[str], meta: Sequence[dict], clean: bool = True, normalize: str = "always"
+) -> Dict[str, object]:
     """
     Accuracy overall and per answer type / question type.
 
@@ -112,7 +123,7 @@ def evaluate_vqa(predictions: Sequence[str], meta: Sequence[dict], clean: bool =
     scores = []
     by_answer, by_question = defaultdict(list), defaultdict(list)
     for pred, m in zip(predictions, meta):
-        s = vqa_soft_accuracy(clean_vqa_prediction(pred) if clean else pred, m["answers"])
+        s = vqa_soft_accuracy(clean_vqa_prediction(pred) if clean else pred, m["answers"], normalize)
         scores.append(s)
         by_answer[m["answer_type"]].append(s)
         by_question[m["question_type"]].append(s)
