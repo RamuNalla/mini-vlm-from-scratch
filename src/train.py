@@ -8,6 +8,7 @@ Entry point: train one stage from a YAML config.
 """
 import argparse
 import os
+import re
 
 import torch
 import yaml
@@ -24,6 +25,15 @@ from src.utils.config import get_device, load_config
 TASKS = {"caption": CaptionDataset, "vqa": VQADataset}
 
 
+SCIENTIFIC = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)[eE][+-]?\d+$")
+
+
+def parse_value(raw: str):
+    """YAML value, except that PyYAML reads "3e-4" as a string (YAML 1.1 wants "3.0e-4"): make it a float."""
+    value = yaml.safe_load(raw)
+    return float(value) if isinstance(value, str) and SCIENTIFIC.match(value) else value
+
+
 def apply_overrides(cfg: dict, overrides) -> dict:
     """Apply "a.b.c=value" overrides (value parsed as YAML, so 3e-4, true, null, bfloat16 all work)."""
     for item in overrides:
@@ -34,7 +44,7 @@ def apply_overrides(cfg: dict, overrides) -> dict:
         *parents, leaf = key.split(".")
         for part in parents:
             node = node.setdefault(part, {})
-        node[leaf] = yaml.safe_load(raw)
+        node[leaf] = parse_value(raw)
     return cfg
 
 
