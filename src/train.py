@@ -4,6 +4,7 @@ Entry point: train one stage from a YAML config.
     python -m src.train --config configs/stage1_align.yaml
     python -m src.train --config configs/stage1_align.yaml --max-steps 50 --out checkpoints/smoke
     python -m src.train --config configs/stage1_align.yaml --resume checkpoints/stage1_align/last.pt
+    python -m src.train --config configs/stage1_align.yaml --set training.lr_projector=3e-4 --set dtype=bfloat16
 """
 import argparse
 import os
@@ -21,6 +22,20 @@ from src.engine.trainer import Trainer, split_by_image
 from src.utils.config import get_device, load_config
 
 TASKS = {"caption": CaptionDataset, "vqa": VQADataset}
+
+
+def apply_overrides(cfg: dict, overrides) -> dict:
+    """Apply "a.b.c=value" overrides (value parsed as YAML, so 3e-4, true, null, bfloat16 all work)."""
+    for item in overrides:
+        key, _, raw = item.partition("=")
+        if not key or not _:
+            raise ValueError(f"Override must look like key.path=value, got '{item}'")
+        node = cfg
+        *parents, leaf = key.split(".")
+        for part in parents:
+            node = node.setdefault(part, {})
+        node[leaf] = yaml.safe_load(raw)
+    return cfg
 
 
 def build_trainer(cfg: dict, out_dir: str) -> Trainer:
@@ -49,9 +64,10 @@ def main():
     p.add_argument("--out", default=None, help="default: checkpoints/<run_name>")
     p.add_argument("--max-steps", type=int, default=None, help="stop after this many optimizer steps")
     p.add_argument("--resume", default=None, help="checkpoint to continue from")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="override a config value, e.g. training.lr_projector=3e-4")
     args = p.parse_args()
 
-    cfg = load_config(args.config)
+    cfg = apply_overrides(load_config(args.config), args.set)
     out_dir = args.out or os.path.join("checkpoints", cfg["run_name"])
     trainer = build_trainer(cfg, out_dir)
     with open(os.path.join(out_dir, "config.yaml"), "w") as f:
