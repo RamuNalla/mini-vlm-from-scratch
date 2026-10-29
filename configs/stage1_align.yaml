@@ -1,7 +1,7 @@
 run_name: stage1_align
 seed: 0
 device: auto
-dtype: float32            # LM dtype (float32 | bfloat16)
+dtype: bfloat16           # LM dtype (float32 | bfloat16); bf16 is the checkpoint's native precision
 stage: align              # align: projector only | instruct: projector + LoRA
 
 model:
@@ -21,7 +21,7 @@ training:
   epochs: 3
   batch_size: 16
   grad_accum: 1
-  lr_projector: 1.0e-3
+  lr_projector: 3.0e-3      # pilot: 3e-4 < 1e-3 < 3e-3 on val loss after 200 steps
   weight_decay: 0.0
   warmup_ratio: 0.05
   min_lr_ratio: 0.1
