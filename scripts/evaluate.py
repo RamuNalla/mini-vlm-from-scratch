@@ -63,6 +63,7 @@ def main():
     p.add_argument("--max-new-tokens-vqa", type=int, default=8)
     p.add_argument("--max-new-tokens-caption", type=int, default=40)
     p.add_argument("--device", default="auto")
+    p.add_argument("--dtype", default=None, choices=["float32", "bfloat16"], help="LM precision (default: the checkpoint's / config's)")
     args = p.parse_args()
 
     out_dir = os.path.join("results", args.name)
@@ -97,11 +98,13 @@ def main():
 
     device = get_device(args.device)
     if args.checkpoint:
-        vlm, cfg = load_vlm_from_checkpoint(args.checkpoint, device)
+        vlm, cfg = load_vlm_from_checkpoint(args.checkpoint, device, dtype=args.dtype)
     else:
         torch.manual_seed(0)
         cfg = load_config(args.config)
         cfg["stage"] = "align"                       # baselines have no LoRA; the projector is random-init
+        if args.dtype:
+            cfg["dtype"] = args.dtype
         cfg["model"].pop("init_from", None)
         vlm = move_vlm(build_vlm(cfg), device).eval()
     n_tokens = cfg["model"]["num_visual_tokens"]

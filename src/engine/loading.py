@@ -43,10 +43,17 @@ def move_vlm(vlm: MiniVLM, device, vit: bool = False) -> MiniVLM:
     return vlm
 
 
-def load_vlm_from_checkpoint(path: str, device="auto", vit_on_device: bool = False) -> Tuple[MiniVLM, dict]:
-    """Rebuild the VLM from the config stored in a training checkpoint and load its trained weights."""
+def load_vlm_from_checkpoint(
+    path: str, device="auto", vit_on_device: bool = False, dtype: str = None
+) -> Tuple[MiniVLM, dict]:
+    """
+    Rebuild the VLM from the config stored in a training checkpoint and load its trained weights.
+    `dtype` overrides the LM precision of the saved config (e.g. evaluate a bf16-trained model in fp32).
+    """
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
     cfg = ckpt["config"]
+    if dtype is not None:
+        cfg = {**cfg, "dtype": dtype}
     vlm = build_vlm(cfg, load_init=False)
     load_trainable_weights(vlm, path)
     vlm.eval()
