@@ -1,0 +1,36 @@
+run_name: stage2_instruct
+seed: 0
+device: auto
+dtype: bfloat16
+stage: instruct           # instruct: projector + LoRA adapters on the LM
+
+model:
+  vit: openai/clip-vit-base-patch16
+  lm: Qwen/Qwen2.5-0.5B-Instruct
+  projector: linear
+  num_visual_tokens: 64
+  init_from: checkpoints/stage1_align/best.pt   # stage 1 projector
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+
+data:
+  task: vqa
+  root: data
+  features: data/features/clip_b16_l-2_224
+  train_manifest: data/manifests/vqa_train.jsonl
+  val_images: 200         # whole images (all their questions) held out for the validation loss
+
+training:
+  epochs: 2
+  batch_size: 16
+  grad_accum: 1
+  lr_projector: 3.0e-4    # lower than stage 1: the projector is already aligned (not piloted)
+  lr_lora: 2.0e-4         # standard LoRA rate (not piloted)
+  weight_decay: 0.0
+  warmup_ratio: 0.05
+  min_lr_ratio: 0.1
+  grad_clip: 1.0
+  log_every: 10
+  eval_every: 100
