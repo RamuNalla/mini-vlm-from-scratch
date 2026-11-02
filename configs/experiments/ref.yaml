@@ -1,0 +1,6 @@
+name: ref
+description: Reference variant of the reduced protocol (linear projector, 64 tokens, frozen CLIP, both stages)
+stages: [align, instruct]
+overrides: {}            # merged into both stage configs
+stage1: {}               # merged into stage 1 only
+stage2: {}               # merged into stage 2 only

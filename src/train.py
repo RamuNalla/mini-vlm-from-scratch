@@ -7,6 +7,7 @@ Entry point: train one stage from a YAML config.
     python -m src.train --config configs/stage1_align.yaml --set training.lr_projector=3e-4 --set dtype=bfloat16
 """
 import argparse
+import json
 import os
 import re
 
@@ -61,6 +62,8 @@ def build_trainer(cfg: dict, out_dir: str) -> Trainer:
     full = TASKS[d["task"]](d["train_manifest"], d["root"], tok, n_tokens, feature_store=store, mode="train",
                             **d.get("dataset_kwargs", {}))
     train_ds, val_ds = split_by_image(full, d.get("val_images", 200), cfg.get("seed", 0))
+    if d.get("max_train_records"):                  # reduced-scale runs: the first N records of the training split
+        train_ds.records = train_ds.records[: d["max_train_records"]]
     summary = {k: f"{v[0] / 1e6:.2f}M" for k, v in vlm.parameter_summary().items()}
     print(f"train {len(train_ds)} | val {len(val_ds)} records | trainable: {summary}")
 
@@ -87,6 +90,10 @@ def main():
         print(f"resumed from {args.resume} at step {trainer.step}")
     print(f"{trainer.steps_per_epoch} steps/epoch, {trainer.total_steps} total, warmup {trainer.warmup_steps}")
     trainer.train(until_step=args.max_steps)
+    if trainer.step >= trainer.total_steps:         # marks a finished run (an interrupted one has no done.json)
+        with open(os.path.join(out_dir, "done.json"), "w") as f:
+            json.dump({"steps": trainer.step, "best_val_loss": trainer.best_val,
+                       "trainable_params": {k: v[0] for k, v in trainer.vlm.parameter_summary().items()}}, f, indent=1)
 
 
 if __name__ == "__main__":

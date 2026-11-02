@@ -1,0 +1,10 @@
+# Reduced-scale protocol shared by every Phase 5 variant (merged over the base stage configs).
+# Full-length runs (3 + 2 epochs) are kept for the best configuration only.
+stage1:
+  training:
+    epochs: 1            # 10k caption images, ~612 steps
+stage2:
+  training:
+    epochs: 1
+  data:
+    max_train_records: 10000   # about half of the VQA training questions, ~600 steps
