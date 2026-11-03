@@ -1,0 +1,8 @@
+name: tokens_196
+description: Visual token count 196 (linear projector, frozen CLIP); the grid is pooled from the cached 14x14 patches
+stages: [align, instruct]
+overrides:
+  model:
+    num_visual_tokens: 196
+stage1: {}
+stage2: {}
