@@ -74,8 +74,8 @@ def test_resampler_is_invariant_to_the_order_of_the_patch_tokens():
 def test_resampler_queries_attend_to_the_input():
     r, x = make_resampler(num_queries=8), torch.randn(1, 20, IN_DIM)
     x2 = x.clone()
-    x2[:, 3] += 1.0
-    assert not torch.allclose(r(x), r(x2), atol=1e-5)
+    x2[:, 3] = torch.randn(IN_DIM, generator=torch.Generator().manual_seed(2))    # a different token (a constant shift
+    assert not torch.allclose(r(x), r(x2), atol=1e-5)                              # would be removed by the LayerNorm)
 
 
 def test_resampler_queries_are_distinct_outputs():
