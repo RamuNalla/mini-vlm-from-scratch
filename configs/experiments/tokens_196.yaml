@@ -1,5 +1,5 @@
 name: tokens_196
-description: Visual token count 196 (linear projector, frozen CLIP); the grid is pooled from the cached 14x14 patches
+description: NOT RUN - skipped for time by decision (stage 1 reached step 500/612, no results). The token-count curve is 16 and 64 tokens only.
 stages: [align, instruct]
 overrides:
   model:
