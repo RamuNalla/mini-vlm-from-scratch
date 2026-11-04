@@ -103,6 +103,29 @@ def test_num_visual_tokens_must_be_square(tok, lm):
         MiniVLM.build(make_vit(), lm, "linear", 20)
 
 
+def test_resampler_vlm_takes_the_full_grid_without_pooling(tok, lm):
+    n = 4
+    torch.manual_seed(1)
+    vlm = MiniVLM.build(make_vit(), lm, "resampler", n, num_heads=4).set_stage("align")
+    assert vlm.projector.num_queries == n
+    feats = vlm.extract_vision_features(images())
+    assert feats.shape[1] == GRID * GRID                                   # all 64 patches go in
+    assert vlm.encode_images(vision_features=feats).shape == (2, n, lm.hidden_size)
+    out = vlm(pixel_values=images(), **make_batch(tok, n))
+    assert torch.isfinite(out.loss)
+    out.loss.backward()
+    assert all(p.grad is not None for p in vlm.projector.parameters())
+    assert all(p.grad is None for p in vlm.lm.parameters())
+
+
+def test_resampler_query_count_must_match_the_vlm(tok, lm):
+    from src.models.projectors import build_projector
+    vlm = make_vlm(lm, 16)
+    vlm.projector = build_projector("resampler", VIT_DIM, lm.hidden_size, num_queries=9, num_heads=4)
+    with pytest.raises(AssertionError, match="queries"):
+        vlm.encode_images(pixel_values=images())
+
+
 # ------------------------------------------------------------------ splicing
 
 @pytest.mark.parametrize("n", [4, 16, 64])

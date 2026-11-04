@@ -52,6 +52,47 @@ def test_factory_rejects_unknown_kind():
         build_projector("transformer", IN_DIM, OUT_DIM)
 
 
-def test_resampler_is_a_phase5_stub():
-    with pytest.raises(NotImplementedError):
-        build_projector("resampler", IN_DIM, OUT_DIM)
+# ---------------------------------------------------------------- resampler
+
+def make_resampler(**kw):
+    torch.manual_seed(0)
+    return build_projector("resampler", IN_DIM, OUT_DIM, **kw).eval()
+
+
+@pytest.mark.parametrize("patches", [16, 64, 196])
+def test_resampler_output_has_one_token_per_query_for_any_input_length(patches):
+    out = make_resampler(num_queries=32)(torch.randn(2, patches, IN_DIM))
+    assert out.shape == (2, 32, OUT_DIM)
+
+
+def test_resampler_is_invariant_to_the_order_of_the_patch_tokens():
+    r, x = make_resampler(num_queries=8), torch.randn(2, 20, IN_DIM)
+    perm = torch.randperm(20, generator=torch.Generator().manual_seed(1))
+    assert torch.allclose(r(x), r(x[:, perm]), atol=1e-4)
+
+
+def test_resampler_queries_attend_to_the_input():
+    r, x = make_resampler(num_queries=8), torch.randn(1, 20, IN_DIM)
+    x2 = x.clone()
+    x2[:, 3] += 1.0
+    assert not torch.allclose(r(x), r(x2), atol=1e-5)
+
+
+def test_resampler_queries_are_distinct_outputs():
+    out = make_resampler(num_queries=8)(torch.randn(1, 20, IN_DIM))[0]
+    assert (out[:, None] - out[None]).abs().amax(-1).fill_diagonal_(1.0).min() > 1e-6       # no two queries identical
+
+
+def test_resampler_gradients_reach_every_parameter():
+    r = build_projector("resampler", IN_DIM, OUT_DIM, num_queries=8)
+    r(torch.randn(2, 20, IN_DIM)).sum().backward()
+    assert all(p.grad is not None and p.grad.abs().sum() > 0 for p in r.parameters())
+
+
+def test_resampler_options_and_flags():
+    r = make_resampler(num_queries=16, depth=2)
+    assert r.takes_full_grid and len(r.layers) == 2 and r.queries.shape == (16, OUT_DIM)
+    assert not getattr(build_projector("linear", IN_DIM, OUT_DIM), "takes_full_grid", False)
+    assert n_params(make_resampler(num_queries=64)) > 5 * n_params(LinearProjector(IN_DIM, OUT_DIM))
+    with pytest.raises(AssertionError):
+        build_projector("resampler", IN_DIM, 900, num_heads=8)                       # 900 % 8 != 0

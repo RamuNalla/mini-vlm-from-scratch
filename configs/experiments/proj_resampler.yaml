@@ -1,0 +1,8 @@
+name: proj_resampler
+description: resampler projector (64 visual tokens, frozen CLIP)
+stages: [align, instruct]
+overrides:
+  model:
+    projector: resampler
+stage1: {}
+stage2: {}

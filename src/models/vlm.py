@@ -67,6 +67,8 @@ class MiniVLM(nn.Module):
         **projector_kwargs,
     ) -> "MiniVLM":
         vit_dim = vit.embeddings.pos_embed.shape[-1]
+        if projector_kind == "resampler":            # one output token per learned query
+            projector_kwargs.setdefault("num_queries", num_visual_tokens)
         projector = build_projector(projector_kind, vit_dim, lm.hidden_size, **projector_kwargs)
         return cls(vit, projector, lm, num_visual_tokens)
 
@@ -105,7 +107,12 @@ class MiniVLM(nn.Module):
             raise ValueError("Pass exactly one of pixel_values or vision_features")
         if vision_features is None:
             vision_features = self.extract_vision_features(pixel_values)
-        pooled = self.pool_tokens(vision_features)
+        if getattr(self.projector, "takes_full_grid", False):       # e.g. the resampler compresses by itself
+            assert self.projector.num_queries == self.num_visual_tokens, \
+                f"projector has {self.projector.num_queries} queries but the VLM expects {self.num_visual_tokens} tokens"
+            pooled = vision_features
+        else:
+            pooled = self.pool_tokens(vision_features)
         proj_dtype = next(self.projector.parameters()).dtype
         return self.projector(pooled.to(proj_dtype))
 

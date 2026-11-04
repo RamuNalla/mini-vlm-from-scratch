@@ -1,0 +1,8 @@
+name: proj_mlp
+description: mlp projector (64 visual tokens, frozen CLIP)
+stages: [align, instruct]
+overrides:
+  model:
+    projector: mlp
+stage1: {}
+stage2: {}
