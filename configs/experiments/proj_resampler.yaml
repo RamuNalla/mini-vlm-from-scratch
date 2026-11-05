@@ -1,8 +1,10 @@
 name: proj_resampler
-description: resampler projector (64 visual tokens, frozen CLIP)
+description: Q-Former-style resampler (64 learned queries over all 196 patches, 8.0M params); stage 1 lr 1e-3 chosen from a 150-step check (3e-3 gave higher validation loss, 2.918 vs 2.848)
 stages: [align, instruct]
 overrides:
   model:
     projector: resampler
-stage1: {}
+stage1:
+  training:
+    lr_projector: 1.0e-3
 stage2: {}
