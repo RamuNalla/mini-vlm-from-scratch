@@ -99,3 +99,9 @@ def test_summary_collects_a_finished_variant(tmp_path):
     assert len(rows) == 1 and rows[0]["name"] == "a" and rows[0]["tokens"] == 16 and rows[0]["trainable_m"] == pytest.approx(9.0)
     table = to_markdown(rows)
     assert "| a | mlp | 16 | 50.00 | 70.00 | 30.00 | 40.00 | 0.500 | 25 | 9.00 |" in table
+
+
+def test_stage2_only_keeps_an_init_the_variant_sets_explicitly():
+    v = variant(stages=["instruct"])
+    v["stage2"] = {"model": {"init_from": "checkpoints/exp/ref/stage1/best.pt"}}
+    assert stage_cfg(v, "instruct")["model"]["init_from"] == "checkpoints/exp/ref/stage1/best.pt"

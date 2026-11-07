@@ -1,0 +1,13 @@
+name: enc_unfreeze2_small
+description: small encoder test - same as enc_frozen_small but the last 2 CLIP blocks are trained (images run live)
+stages: [instruct]
+overrides: {}
+stage1: {}
+stage2:
+  model:
+    init_from: checkpoints/exp/ref/stage1/best.pt
+    unfreeze_vit_blocks: 2
+  data:
+    max_train_records: 3000
+  training:
+    lr_vit: 1.0e-5

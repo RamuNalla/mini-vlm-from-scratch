@@ -25,6 +25,7 @@ from src.data.vqa_dataset import VQADataset
 from src.engine.evaluator import Evaluator, constant_vqa_baseline
 from src.eval.vqa_accuracy import evaluate_vqa
 from src.engine.loading import build_vlm, load_vlm_from_checkpoint, move_vlm
+from src.models.vit.load_pretrained import clip_transform
 from src.utils.config import get_device, load_config
 
 
@@ -98,8 +99,11 @@ def main():
 
     device = get_device(args.device)
     if args.checkpoint:
-        vlm, cfg = load_vlm_from_checkpoint(args.checkpoint, device, dtype=args.dtype)
+        ckpt_cfg = torch.load(args.checkpoint, map_location="cpu", weights_only=False)["config"]
+        live_vit = ckpt_cfg["model"].get("unfreeze_vit_blocks") is not None      # a fine-tuned encoder runs on the images
+        vlm, cfg = load_vlm_from_checkpoint(args.checkpoint, device, vit_on_device=live_vit, dtype=args.dtype)
     else:
+        live_vit = False
         torch.manual_seed(0)
         cfg = load_config(args.config)
         cfg["stage"] = "align"                       # baselines have no LoRA; the projector is random-init
@@ -111,9 +115,12 @@ def main():
     tok = AutoTokenizer.from_pretrained(cfg["model"]["lm"])
     info["config"] = cfg
 
-    kwargs = {"use_image": False} if args.text_only else {
-        "feature_store": FeatureStore(args.features or os.path.join(args.data, "features", "clip_b16_l-2_224"))
-    }
+    if args.text_only:
+        kwargs = {"use_image": False}
+    elif live_vit:
+        kwargs = {"transform": clip_transform()}
+    else:
+        kwargs = {"feature_store": FeatureStore(args.features or os.path.join(args.data, "features", "clip_b16_l-2_224"))}
     evaluator = Evaluator(vlm, tok, device, args.batch_size)
 
     if "vqa" in args.tasks:

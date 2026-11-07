@@ -1,0 +1,10 @@
+name: enc_frozen_small
+description: small encoder control - stage 2 only, 3k VQA records, frozen CLIP, from the ref stage 1 projector
+stages: [instruct]
+overrides: {}
+stage1: {}
+stage2:
+  model:
+    init_from: checkpoints/exp/ref/stage1/best.pt
+  data:
+    max_train_records: 3000

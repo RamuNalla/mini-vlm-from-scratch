@@ -21,6 +21,7 @@ from src.data.feature_cache import FeatureStore
 from src.data.vqa_dataset import VQADataset
 from src.engine.loading import build_vlm, move_vlm
 from src.engine.trainer import Trainer, split_by_image
+from src.models.vit.load_pretrained import clip_transform
 from src.utils.config import get_device, load_config
 
 TASKS = {"caption": CaptionDataset, "vqa": VQADataset}
@@ -55,11 +56,13 @@ def build_trainer(cfg: dict, out_dir: str) -> Trainer:
     m, d = cfg["model"], cfg["data"]
     n_tokens = m["num_visual_tokens"]
 
-    vlm = move_vlm(build_vlm(cfg), device)       # features come from the cache, so the ViT stays on the CPU
+    # A trainable encoder cannot use the feature cache (its output changes every step): images go through it live.
+    live_vit = m.get("unfreeze_vit_blocks") is not None
+    vlm = move_vlm(build_vlm(cfg), device, vit=live_vit)    # with cached features the ViT never runs and stays on the CPU
 
     tok = AutoTokenizer.from_pretrained(m["lm"])
-    store = FeatureStore(d["features"])
-    full = TASKS[d["task"]](d["train_manifest"], d["root"], tok, n_tokens, feature_store=store, mode="train",
+    visual = {"transform": clip_transform()} if live_vit else {"feature_store": FeatureStore(d["features"])}
+    full = TASKS[d["task"]](d["train_manifest"], d["root"], tok, n_tokens, mode="train", **visual,
                             **d.get("dataset_kwargs", {}))
     train_ds, val_ds = split_by_image(full, d.get("val_images", 200), cfg.get("seed", 0))
     if d.get("max_train_records"):                  # reduced-scale runs: the first N records of the training split

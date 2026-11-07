@@ -45,8 +45,9 @@ def build_stage_config(variant: dict, stage: str, protocol: dict, base_cfg: dict
     if stage == "instruct":
         if "align" in variant["stages"]:      # start from this variant's own stage 1 projector
             cfg["model"]["init_from"] = os.path.join(exp_dir, "stage1", "best.pt")
-        else:                                 # stage 2 only: random-init projector
-            cfg["model"].pop("init_from", None)
+        elif "init_from" not in {**(variant.get("overrides", {}).get("model") or {}),
+                                 **(variant.get("stage2", {}).get("model") or {})}:
+            cfg["model"].pop("init_from", None)   # stage 2 only: random-init projector, unless the variant names a start
     return cfg
 
 
