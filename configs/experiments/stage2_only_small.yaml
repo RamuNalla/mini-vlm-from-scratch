@@ -1,0 +1,8 @@
+name: stage2_only_small
+description: training-stage ablation - stage 2 only (random-init projector, no alignment stage), 3k VQA records, frozen CLIP
+stages: [instruct]
+overrides: {}
+stage1: {}
+stage2:
+  data:
+    max_train_records: 3000
