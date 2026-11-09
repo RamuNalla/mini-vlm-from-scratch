@@ -48,7 +48,8 @@ def main():
     fig, ax = plt.subplots(figsize=(7, 4))
     bars(ax, [l for _, l in names], vals, errors=SE)
     ax.axhline(TEXT_ONLY, color=MUTED, linestyle="--", linewidth=1)
-    ax.text(3.45, TEXT_ONLY + 0.8, "text-only 24.4", ha="right", color=MUTED, fontsize=9)
+    ax.set_xlim(-0.6, 4.5)
+    ax.text(4.45, TEXT_ONLY + 0.8, "text-only 24.4", ha="right", color=MUTED, fontsize=9)
     ax.set_ylabel("VQA accuracy (%)", color=MUTED)
     ax.set_title("Reduced protocol: visual tokens and projector", loc="left", color=INK, fontsize=12)
     ax.set_ylim(0, 62)
@@ -67,12 +68,12 @@ def main():
         lo = [lat[k][f"batch{bs}"]["median_ms"] - lat[k][f"batch{bs}"]["min_ms"] for k in labels]
         hi = [lat[k][f"batch{bs}"]["max_ms"] - lat[k][f"batch{bs}"]["median_ms"] for k in labels]
         ax.bar(range(len(vs)), vs, width=0.5, color=BAR, yerr=[lo, hi], ecolor=MUTED, capsize=3, error_kw={"linewidth": 1})
-        for i, v in enumerate(vs):
-            ax.text(i, v + max(hi) + 2, f"{v:.0f}", ha="center", color=INK, fontsize=10)
+        for i, (v, h) in enumerate(zip(vs, hi)):
+            ax.text(i, v + h + max(vs) * 0.02, f"{v:.0f}", ha="center", color=INK, fontsize=10)
         ax.set_xticks(range(len(vs)))
         ax.set_xticklabels(list(labels.values()), fontsize=8, color=INK)
         ax.set_title(f"batch size {bs}", loc="left", color=INK, fontsize=11)
-        ax.set_ylim(0, max(vs) * 1.3)
+        ax.set_ylim(0, (max(v + h for v, h in zip(vs, hi))) * 1.15)
         style(ax)
     axes[0].set_ylabel("ms per question (median of 7 passes)", color=MUTED)
     fig.suptitle("Generation latency (cached features, up to 8 new tokens, M4 Pro)", x=0.01, ha="left", color=INK, fontsize=12)
@@ -88,7 +89,8 @@ def main():
     fig, ax = plt.subplots(figsize=(7.5, 4))
     bars(ax, [l for _, l in small], vals, errors=SE)
     ax.axhline(TEXT_ONLY, color=MUTED, linestyle="--", linewidth=1)
-    ax.text(3.45, TEXT_ONLY + 0.8, "text-only 24.4", ha="right", color=MUTED, fontsize=9)
+    ax.set_xlim(-0.6, 4.5)
+    ax.text(4.45, TEXT_ONLY + 0.8, "text-only 24.4", ha="right", color=MUTED, fontsize=9)
     ax.set_ylabel("VQA accuracy (%)", color=MUTED)
     ax.set_title("Small protocol (3k stage-2 records): encoder and training stages", loc="left", color=INK, fontsize=12)
     ax.set_ylim(0, 62)
