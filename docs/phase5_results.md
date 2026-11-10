@@ -2,8 +2,8 @@
 
 Experiments on the Mini-VLM: CLIP ViT-B/16 encoder, learned projector, Qwen2.5-0.5B-Instruct with LoRA.
 This file covers what is finished so far: the visual-token count, the projector type, the encoder
-(frozen against partly trained) and the training stages. The full-length run, the latency timing and the
-plots are still to do.
+(frozen against partly trained), the training stages and inference latency. The optional full-length run is
+still to do.
 
 ## Protocol
 
@@ -53,6 +53,8 @@ Reading: 16 tokens keep most of the accuracy at half the training cost, but the 
 
 Reading: under the reduced protocol the simple linear projector is as good as or better than the alternatives.
 
+![VQA accuracy by variant](assets/phase5_accuracy.png)
+
 ## Encoder: frozen against last 2 blocks trained
 
 A smaller protocol than the main table: stage 2 only, 3,000 VQA records (187 steps), both runs starting from the
@@ -94,15 +96,41 @@ For scale: always answering "yes" scores 24.7% and the text-only model 24.4%.
   low for one starting from random weights. Part of the gap could come from that rather than from missing
   alignment itself.
 
+![Small-protocol results](assets/phase5_small_protocol.png)
+
+## Inference latency
+
+Timed separately with repeats (`scripts/benchmark_latency.py`): the same 32 VQA questions, cached image
+features, greedy decoding of up to 8 new tokens, one warm-up pass and 7 timed passes per setting, on the M4 Pro.
+Milliseconds per question, median (min to max):
+
+| Variant | Batch 1 | Batch 16 |
+|---|---|---|
+| linear, 16 tokens | 87 (85-89) | 24 (23-26) |
+| linear, 64 tokens | 88 (85-101) | 42 (40-57) |
+| MLP, 64 tokens | 104 (86-109) | 38 (37-39) |
+| resampler, 64 tokens | 88 (87-89) | 40 (39-43) |
+
+- With **one question at a time**, the token count makes no measurable difference (87 against 88 ms): the time is
+  dominated by the per-token decoding steps, not by the 48 extra prompt tokens.
+- With **batches of 16**, 16 tokens run at about 24 ms per question against 38 to 42 ms for 64 tokens, roughly
+  40% less. The longer prompt matters once the work is batched.
+- The three 64-token projectors cost about the same. The MLP's batch-1 median is higher but its range overlaps the
+  others, so it is not a real difference.
+- These numbers leave out the encoder pass (features are cached). A live encoder adds its own cost per image.
+
+![Generation latency](assets/phase5_latency.png)
+
 ## Caveats
 
 - One seed per variant, 3,000 questions, so small gaps are not reliable.
-- Per-question latency from a single run is noisy (the same model has measured 26 ms and 40 ms). Latency against
-  token count should be timed separately with repeats before it is quoted.
+- Latency is from the repeated benchmark above, not from the single evaluation runs (the ms per question in the
+  main table is noisy: the same model has measured 26 ms and 40 ms there).
 - Comparisons hold only within the reduced protocol. The best configuration still needs a full-length run to
   confirm it.
 
 ## Still to do
 
-1. Full-length run of the best configuration (about 2.7 hours; to be confirmed first).
-2. Latency against token count, timed with repeats, and the plots.
+1. Optional: a full-length run of the best configuration (about 2.7 hours). The best configuration is the
+   reference setup (linear projector, 64 tokens, frozen encoder), which already has a full-length result of
+   57.36%, so this is skipped unless asked for.
