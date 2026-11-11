@@ -52,8 +52,9 @@ The model answers with 12 distinct values and under-counts far more often than i
 - Exact accuracy falls with the true count: 53% at 0, 64% at 1, 49% at 2, 34% at 3, 10% at 4, 12% at 5 and 0% at 6.
 - It predicts "1" 109 times (truth: 64) and "2" 98 times (truth: 82), so it leans toward small numbers.
 
-With 64 visual tokens each about a quarter of the picture's detail, scenes with many small objects are likely
-out of reach. That is an interpretation, not something tested yet (step 4 looks at examples).
+One possible reason is that pooling the 196 patches down to 64 tokens blurs small objects, so crowded scenes are
+hard to count. That is a guess, not something tested yet (the 16-token run, which pools harder, scores 38.6 on
+counting against 41.7 for 64 tokens, a gap inside the noise). The examples in step 3 should show more.
 
 ## Still to do in Phase 6
 
