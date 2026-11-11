@@ -31,7 +31,6 @@ def group_stats(rows):
     buckets = {g: [] for g in GROUPS}
     for r in rows:
         buckets[question_group(r["question"], r["answer_type"])].append(r["score"])
-        
     buckets["all"] = [r["score"] for r in rows]
     out = {}
     for g, scores in buckets.items():
