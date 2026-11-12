@@ -14,6 +14,9 @@ from src.analysis.question_groups import GROUPS, question_group
     ("Is this a real game?", "yes/no", "yes/no"),
     ("What sport is this?", "other", "other"),
     ("Why is he smiling?", "other", "other"),
+    ("How much time is left?", "number", "other"),
+    ("What is the age of the two people closest to the camera?", "number", "other"),
+    ("Which person is on the right?", "other", "spatial"),
 ])
 def test_question_group(question, answer_type, expected):
     assert question_group(question, answer_type) == expected

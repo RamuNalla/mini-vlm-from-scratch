@@ -13,8 +13,9 @@ import re
 GROUPS = ["counting", "colour", "spatial", "yes/no", "other"]
 
 SPATIAL_WORDS = re.compile(
-    r"\b(left|right|behind|in front of|next to|beside|above|below|under|underneath|between|near|"
-    r"top of|bottom of|on top|far|close to|closest|farthest|center|middle|corner)\b"
+    r"\b(?:(?:on|to|at|from|in|of) the (?:left|right)|(?:left|right) of|(?:left|right)[- ]?(?:most|hand)|"
+    r"behind|in front of|next to|beside|above|below|under|underneath|between|near|top of|bottom of|on top|"
+    r"close to|center|middle|corner)\b"
 )
 
 
