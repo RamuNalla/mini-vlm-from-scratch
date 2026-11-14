@@ -55,28 +55,30 @@ The model answers with 12 distinct values and under-counts far more often than i
 
 One possible reason is that pooling the 196 patches down to 64 tokens blurs small objects, so crowded scenes are
 hard to count. That is a guess, not something tested yet (the 16-token run, which pools harder, scores 38.6 on
-counting against 41.7 for 64 tokens, a gap inside the noise). The examples in step 3 should show more.
+counting against 41.7 for 64 tokens, a gap inside the noise). The failure examples below fit this: most counting failures are small, thin or crowded objects.
 
 ## What the failures look like
 
 Read by hand from 8 random failures (soft accuracy 0) in each of four groups, 32 in total
 (`python -m scripts.failure_examples`, seeded; contact sheets in `results/failure_analysis/examples_*.png`). This
-is a small, subjective sample, so the counts below show what is common, not how common.
+is a small, subjective sample, so the counts below show what is common, not how common. The sheets were drawn
+before the spatial rule was tightened, so two of the eight "spatial" examples ("how much time is left", "age of the
+people closest to the camera") are not position questions and would no longer be in that group.
 
 **Counting (7 of 8 under-counts).** Elephants 3 against 6, empty seats 1 against 4, ski poles 1 against 4, boxes on
 the top row 1 against 5, picture frames 2 against 7, signs 2 against 6, birds 4 against 7. The objects are small, thin,
 partly hidden or numerous. The remaining one is "how many colors is the tennis ball", a colour question that the
 "how many" rule counts as counting.
 
-**Colour (5 of 8 take the colour of a larger nearby thing).** The boat is "blue" (the water), the stripes in the grass
-are "green" (the grass), the boy's red hat is "black" (his shirt), the surfboard is "red" and the sunglasses
-"black" when they are white and pink. Two more are near shades or multi-colour objects: walls "brown" against
+**Colour (3 of 8 take the colour of a larger nearby thing).** The boat is "blue" (the water), the stripes in the grass
+are "green" (the grass) and the boy's red hat is "black" (his shirt). Two more are small objects with the wrong
+colour and no obvious source: a white surfboard called "red" and pink sunglasses called "black". Two more are near shades or multi-colour objects: walls "brown" against
 "beige", a brown-and-black cat called "orange". One is text colour on a bus ("blue" against "red").
 
 **Spatial (4 of 8 are plausible but not matching).** "Where is the water" gets "in river" against "on left", "where are
 the sitting" gets "table" against "restaurant", "sheep standing next to" gets "fence" against "barn", and "on the
 pavement beside the child" gets "bike" against "shadow". Exact-match scoring punishes answers at a different level of
-detail or of the right kind but not the one people wrote. Only 2 of the 8 are clear position errors
+detail or of the right kind but not the one people wrote. Two are clear position errors
 (snow against trees at the top of the mountains, "on table" against "under bench" for the empty cups).
 
 **Other (4 of 8 need reading text).** "What letters on the front of the train" gets "s" against "mata", "what does the
