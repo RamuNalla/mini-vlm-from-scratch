@@ -91,7 +91,34 @@ at that size, and "what type of breakfast" answered with "breakfast" (echoing th
 bigger neighbour, (3) text that cannot be read at 224 px, and (4) strict answer matching. None of this is
 tested yet: the next step uses an image ablation on a few examples to see what the model really uses.
 
+## Does the model really use the image? (image ablation)
+
+All 3,000 questions answered again with the image features replaced (`scripts/image_ablation.py`, full-recipe model;
+the "real" row reproduces the 57.4% evaluation exactly, which checks the setup). "other" gives each question the
+image of a different question; "mean" gives every question the same average image feature of the eval set, an image
+with the right statistics and no content. Accuracy in %:
+
+| Image given | counting | colour | spatial | yes/no | other | all | answer differs from real |
+|---|---|---|---|---|---|---|---|
+| real | 43.8 | 53.6 | 41.3 | 79.4 | 44.2 | 57.4 | - |
+| other | 19.4 | 34.0 | 14.1 | 62.8 | 15.7 | 34.5 | 63% |
+| mean | 28.6 | 34.2 | 21.6 | 70.9 | 18.9 | 40.1 | 53% |
+
+- **The image drives the answers.** With a wrong image, 63% of answers change and accuracy falls 23 points; with an
+  empty image, 53% change and it falls 17.
+- **A wrong image is worse than no image.** In every group the "other" row is at or below the "mean" row (counting 19.4
+  against 28.6, spatial 14.1 against 21.6), so the model follows what it sees rather than falling back on the
+  question. For counting, the question-type prior alone gets 34.4%, more than either row, so a wrong image
+  actively misleads.
+- **Colour keeps 34% without the right image.** Both altered rows score about 34 on colour, above the 24-26% a pure
+  question guess gets, probably because common colours (white, red, black) are right often by chance and "other"
+  images share some of them. This is an explanation I did not test.
+- **Yes/no barely depends on the right image** (79.4 to 62.8 with a wrong one, 70.9 with an empty one): the question
+  wording explains most of it, as the prior table showed.
+- Not done: removing parts of one image (for example the top half) to see which region matters. This would
+  need a per-example look at 64 tokens and was left out to keep the scope small.
+
 ## Still to do in Phase 6
 
-The image-token ablation on a few examples, the notebook `notebooks/03_failure_analysis.ipynb`, the final README
+The notebook `notebooks/03_failure_analysis.ipynb`, the final README
 and the blog draft.
