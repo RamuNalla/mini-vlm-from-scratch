@@ -10,7 +10,7 @@ small learned projector. Everything was trained on one MacBook (M4 Pro, 48 GB, M
 numbers are modest. The point was to see where the model works, where it breaks, and why.
 
 ```
-who is holding the umbrella?  ->  [ image ] + question  ->  "the woman in red"
+[ photo of people on a grass field ] + "What color is the sky?"  ->  "blue"
 ```
 
 ---
@@ -125,7 +125,7 @@ training step skips the image pipeline:
 python -m scripts.extract_features
 ```
 
-**3. Train both stages** (about 2.5 hours on an M4 Pro; the first runs the 3 epochs of captions, the second the 2 epochs
+**3. Train both stages** (about 2.7 hours on an M4 Pro; the first runs the 3 epochs of captions, the second the 2 epochs
 of VQA):
 
 ```bash
@@ -234,4 +234,4 @@ training commands above.
 
 CLIP ViT-B/16 from OpenAI, Qwen2.5-0.5B-Instruct from the Qwen team, the COCO and VQAv2 datasets, the LLaVA papers
 for the recipe, and the Hugging Face `transformers` and `peft` libraries. The VQA scoring and the BLEU and CIDEr code
-are my own implementations, checked against the usual reference scorers.
+are my own implementations; the caption scorers are checked against the usual reference package in the tests.
